@@ -34,13 +34,14 @@ function init(){
     } 
 
     // клик по карте
-    myMap.events.add('click', function (e) {
+    myMap.events.add('click', function (e) {        
         let coords = e.get('coords');
-        console.log(e); // !!! координаты x y брать тут
-
+        
         coordsToAddress(coords).then(function(address) {
             createReview(address, coords);
         });
+        // определение места клика 
+        [clickX, clickY] = clickPlace(e._sourceEvent.originalEvent.pagePixels);
     });
 
     // закрытие отзыва
@@ -66,10 +67,6 @@ function init(){
         document.querySelector('#map').appendChild(newReview);
 
         const form = newReview.querySelector('#form');
-
-        form.addEventListener('click', function(e) {
-            console.log(e.target.name);
-        })
 
         newReview.querySelector('#send').addEventListener('click', function(e) {
             e.preventDefault();
@@ -102,14 +99,11 @@ function init(){
             }
         }
         if (chat.length == 0) {
-            chat = [{text: 'no one message'}]
+            chat = [{text: 'Отзывов пока нет...'}]
         }
 
         let reviewData = { 
             address: address,
-            formName: 'name',
-            formPlace: 'place',
-            formText: 'text',
             chat: chat
         };
         const review = document.querySelector('#review').textContent;
@@ -160,6 +154,18 @@ function init(){
 
     // добавление кластера на карту
     myMap.geoObjects.add(myClusterer);
+    
+    // открытие формы при клике по ссылке в кластере
+    document.addEventListener('click', function(e) {
+        if (e.target.tagName == "A") {
+            let address = e.target.textContent;
+            
+            addressToCoords(address).then(function(coords) {
+                createReview(address, coords);
+            });
+            myClusterer.balloon.close();
+        }
+    });
 
     // заполнение метками из памяти при старте
     startCreatePlacemarks();
@@ -170,40 +176,38 @@ function init(){
         }
     }
 
-    let clickX = '100px';
-    let clickY = '100px';
-    
-    document.addEventListener('click', function(e) {
-        // определение места клика для окна отзыва
-        // проверить ...
-        if (e.target.tagName == 'YMAPS') {
-            clickY = e.y;
-            clickX = e.x;
+    // место клика
+    let [clickX, clickY] = firstPlace();
+}
 
-            if (clickY > document.body.clientHeight - 530) {
-                clickY = document.body.clientHeight - 530;
-                if (clickY < 0) {
-                    clickY = 0;
-                }
-            }
-            if (clickX > document.body.clientWidth - 380) {
-                clickX = document.body.clientWidth - 380;
-                if (clickX < 0) {
-                    clickX = 0;
-                }
-            }
-            clickY = clickY + 'px';
-            clickX = clickX + 'px';
+// определение первичных координат
+function firstPlace() {
+    let y = document.body.clientHeight / 2 - 265;
+    let x = document.body.clientWidth / 2 - 190;
+    
+    [x, y] = clickPlace([x, y]);
+
+    return [x, y];
+}
+
+// поверка и получение строковых Xpx, Ypx
+function clickPlace([x, y]) {
+    if (y > document.body.clientHeight - 530) {
+        y = document.body.clientHeight - 530;
+        if (y < 0) {
+            y = 0;
         }
-        // клик по ссылке
-        if (e.target.tagName == "A") {
-            let address = e.target.textContent;
-            
-            addressToCoords(address).then(function(coords) {
-                createReview(address, coords);
-            });
+    }
+    if (x > document.body.clientWidth - 380) {
+        x = document.body.clientWidth - 380;
+        if (x < 0) {
+            x = 0;
         }
-    });
+    }
+    y = y + 'px';
+    x = x + 'px';
+    
+    return [x, y];
 }
 
 // работа с памятью
@@ -220,4 +224,22 @@ function date() {
     let myDate = `${date.getFullYear()}.${date.getMonth()}.${date.getDate()} ${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`;
 
     return myDate;
+}
+
+function date() {
+    let date = new Date();
+    let year = datePrefix(date.getFullYear());
+    let month = datePrefix(date.getMonth());
+    let day = datePrefix(date.getDate());
+    let hours = datePrefix(date.getHours());
+    let minutes = datePrefix(date.getMinutes());
+    let seconds = datePrefix(date.getSeconds());
+
+    return `${year}.${month}.${day} ${hours}:${minutes}:${seconds}`;
+}
+function datePrefix(num) {
+    if (num <= 9) {
+        return '0' + num;
+    }
+    return num;
 }
